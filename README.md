@@ -193,7 +193,7 @@ Contributions welcome for:
 
 ## License
 
-Educational and research use. Commercial licensing available.
+Open Source
 
 ## Changelog
 
