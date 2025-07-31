@@ -1,0 +1,61 @@
+{
+    "name": "Advanced Camera Array Tool",
+    "version": "2.0.0",
+    "description": "Comprehensive camera array creation for 3D visualization, photogrammetry, and Gaussian Splatting workflows",
+    "author": "C4D Camera Array Team",
+    "c4d_minimum_version": "20.0",
+    "python_version": "3.x",
+    
+    "features": [
+        "Multiple array patterns (spherical, cylindrical, grid, vertex)",
+        "Advanced camera direction control",
+        "COLMAP export for photogrammetry",
+        "4D animation support for temporal reconstruction",
+        "Real-time preview system",
+        "Performance optimizations",
+        "Take system integration",
+        "Camera metadata export"
+    ],
+    
+    "files": {
+        "main": "Camera to Take.py",
+        "preview": "camera_array_preview.py",
+        "animation": "camera_array_animation.py",
+        "utils": "camera_array_utils.py",
+        "resources": "res/",
+        "documentation": "README.md"
+    },
+    
+    "dependencies": {
+        "c4d": ">=20.0",
+        "python": ">=3.6"
+    },
+    
+    "categories": [
+        "3D Visualization",
+        "Photogrammetry",
+        "Camera Tools",
+        "Animation",
+        "Export Tools"
+    ],
+    
+    "keywords": [
+        "camera array",
+        "photogrammetry", 
+        "gaussian splatting",
+        "3d scanning",
+        "colmap",
+        "camera positioning",
+        "spherical array",
+        "take system"
+    ],
+    
+    "license": "Educational/Research Use",
+    "support_url": "https://github.com/cedarconnor/C4DCameraArray",
+    
+    "installation": {
+        "method": "copy_to_plugins",
+        "requires_restart": true,
+        "plugin_id_required": true
+    }
+}

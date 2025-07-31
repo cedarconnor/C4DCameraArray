@@ -1,0 +1,31 @@
+STRINGTABLE camera_array_tool
+{
+    camera_array_tool "Camera Array Tool";
+    
+    ARRAY_PATTERN "Array Pattern";
+    CAMERA_COUNT "Camera Count";
+    RADIUS "Radius";
+    HEIGHT "Height";
+    GRID_SIZE_X "Grid Size X";
+    GRID_SIZE_Y "Grid Size Y";
+    DIRECTION "Direction";
+    TARGET_OBJECT "Target Object";
+    FOCAL_LENGTH "Focal Length";
+    SYNC_FOCAL_LENGTH "Sync Focal Length";
+    CREATE_TAKES "Create Takes";
+    SHOW_PREVIEW "Show Preview";
+    
+    CREATE_ARRAY "Create Array";
+    EXPORT_COLMAP "Export COLMAP";
+    CLEAR_CAMERAS "Clear Cameras";
+    
+    PATTERN_VERTICES "From Vertices";
+    PATTERN_SPHERE "Sphere";
+    PATTERN_CYLINDER "Cylinder";
+    PATTERN_GRID "Grid";
+    
+    DIR_INWARD "Inward";
+    DIR_OUTWARD "Outward";
+    DIR_TANGENTIAL "Tangential";
+    DIR_CUSTOM "Custom";
+}
