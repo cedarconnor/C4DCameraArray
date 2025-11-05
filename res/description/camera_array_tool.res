@@ -38,6 +38,18 @@ CONTAINER camera_array_tool
             STATICTEXT { NAME "Grid Size Y:"; }
             LONG GRID_SIZE_Y { MIN 1; MAX 100; }
             
+            STATICTEXT { NAME "Distribution:"; }
+            LONG DISTRIBUTION_METHOD
+            {
+                CYCLE
+                {
+                    DIST_GOLDEN_SPIRAL;
+                    DIST_FIBONACCI;
+                    DIST_HALTON;
+                    DIST_POISSON;
+                }
+            }
+
             STATICTEXT { NAME "Direction:"; }
             LONG DIRECTION
             {
@@ -49,7 +61,7 @@ CONTAINER camera_array_tool
                     DIR_CUSTOM;
                 }
             }
-            
+
             STATICTEXT { NAME "Target Object:"; }
             LINK TARGET_OBJECT { ACCEPT { Obase; } }
             
@@ -60,13 +72,32 @@ CONTAINER camera_array_tool
             CHECKBOX CREATE_TAKES { NAME "Create Takes"; }
             CHECKBOX SHOW_PREVIEW { NAME "Show Preview"; }
         }
-        
+
+        GROUP
+        {
+            COLUMNS 2;
+            STATICTEXT { NAME "Batch Render"; BOLD; }
+            STATICTEXT { }
+
+            CHECKBOX BATCH_RENDER_ENABLED { NAME "Enable Batch Render"; }
+            STATICTEXT { }
+
+            STATICTEXT { NAME "Output Path:"; }
+            FILENAME BATCH_RENDER_PATH { DIRECTORY; }
+        }
+
         GROUP
         {
             COLUMNS 3;
             BUTTON CREATE_ARRAY { NAME "Create Array"; }
             BUTTON EXPORT_COLMAP { NAME "Export COLMAP"; }
             BUTTON CLEAR_CAMERAS { NAME "Clear Cameras"; }
+        }
+
+        GROUP
+        {
+            COLUMNS 1;
+            BUTTON BATCH_RENDER { NAME "Batch Render All Cameras"; }
         }
     }
 }
