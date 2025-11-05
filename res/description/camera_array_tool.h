@@ -18,11 +18,15 @@ enum
     SYNC_FOCAL_LENGTH = 1009,
     CREATE_TAKES = 1010,
     SHOW_PREVIEW = 1011,
-    
+    DISTRIBUTION_METHOD = 1012,
+    BATCH_RENDER_ENABLED = 1013,
+    BATCH_RENDER_PATH = 1014,
+
     // Buttons
     CREATE_ARRAY = 1020,
     EXPORT_COLMAP = 1021,
     CLEAR_CAMERAS = 1022,
+    BATCH_RENDER = 1023,
     
     // Pattern types
     PATTERN_VERTICES = 0,
@@ -34,5 +38,11 @@ enum
     DIR_INWARD = 0,
     DIR_OUTWARD = 1,
     DIR_TANGENTIAL = 2,
-    DIR_CUSTOM = 3
+    DIR_CUSTOM = 3,
+
+    // Distribution methods
+    DIST_GOLDEN_SPIRAL = 0,
+    DIST_FIBONACCI = 1,
+    DIST_HALTON = 2,
+    DIST_POISSON = 3
 };

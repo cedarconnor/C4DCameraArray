@@ -1,9 +1,10 @@
 import c4d
-from c4d import gui, plugins, bitmaps
+from c4d import gui, plugins, bitmaps, documents
 from c4d.modules import takesystem
 import math
 import os
 import json
+from camera_array_utils import CameraArrayUtils
 
 # Plugin IDs - you should get official IDs from Plugin Cafe
 PLUGIN_ID = 1054321
@@ -21,7 +22,7 @@ class CameraArrayTool(plugins.ObjectData):
     def Init(self, node, isCloneInit=False):
         """Initialize the object with default values"""
         data = node.GetDataInstance()
-        
+
         # Set default values
         data.SetLong(ARRAY_PATTERN, PATTERN_SPHERE)
         data.SetLong(CAMERA_COUNT, 12)
@@ -29,59 +30,69 @@ class CameraArrayTool(plugins.ObjectData):
         data.SetReal(HEIGHT, 400.0)
         data.SetLong(GRID_SIZE_X, 3)
         data.SetLong(GRID_SIZE_Y, 3)
+        data.SetLong(DISTRIBUTION_METHOD, DIST_GOLDEN_SPIRAL)
         data.SetLong(DIRECTION, DIR_INWARD)
         data.SetReal(FOCAL_LENGTH, 35.0)
         data.SetBool(SYNC_FOCAL_LENGTH, True)
         data.SetBool(CREATE_TAKES, True)
         data.SetBool(SHOW_PREVIEW, False)
-        
+        data.SetBool(BATCH_RENDER_ENABLED, False)
+        data.SetString(BATCH_RENDER_PATH, "")
+
         return True
     
     def Message(self, node, type, data):
         """Handle button messages"""
         if type == c4d.MSG_DESCRIPTION_COMMAND:
             id = data['id'][0].id
-            
+
             if id == CREATE_ARRAY:
                 self.create_camera_array(node)
             elif id == EXPORT_COLMAP:
                 self.export_colmap(node)
             elif id == CLEAR_CAMERAS:
                 self.clear_cameras(node)
-            
+            elif id == BATCH_RENDER:
+                self.batch_render_cameras(node)
+
             c4d.EventAdd()
-            
+
         return True
     
     def GetDDescription(self, node, description, flags):
         """Dynamic description based on array pattern"""
         if not description.LoadDescription(node.GetType()):
             return False
-            
+
         data = node.GetDataInstance()
         pattern = data.GetLong(ARRAY_PATTERN)
-        
+
         # Hide/show parameters based on pattern
         desc = description.GetParameterI(RADIUS, None)
         if desc:
             desc[c4d.DESC_HIDE] = pattern == PATTERN_VERTICES
-            
+
         desc = description.GetParameterI(HEIGHT, None)
         if desc:
             desc[c4d.DESC_HIDE] = pattern not in [PATTERN_CYLINDER]
-            
+
         desc = description.GetParameterI(GRID_SIZE_X, None)
         if desc:
             desc[c4d.DESC_HIDE] = pattern != PATTERN_GRID
-            
+
         desc = description.GetParameterI(GRID_SIZE_Y, None)
         if desc:
             desc[c4d.DESC_HIDE] = pattern != PATTERN_GRID
-            
+
         desc = description.GetParameterI(CAMERA_COUNT, None)
         if desc:
             desc[c4d.DESC_HIDE] = pattern in [PATTERN_VERTICES, PATTERN_GRID]
-        
+
+        # Distribution method only applies to sphere pattern
+        desc = description.GetParameterI(DISTRIBUTION_METHOD, None)
+        if desc:
+            desc[c4d.DESC_HIDE] = pattern != PATTERN_SPHERE
+
         return True, flags | c4d.DESCFLAGS_DESC_LOADED
     
     def create_camera_array(self, node):
@@ -151,39 +162,37 @@ class CameraArrayTool(plugins.ObjectData):
         """Create cameras in spherical array"""
         doc = node.GetDocument()
         data = node.GetDataInstance()
-        
+
         count = data.GetLong(CAMERA_COUNT)
         radius = data.GetReal(RADIUS)
         direction_type = data.GetLong(DIRECTION)
         target_obj = data.GetLink(TARGET_OBJECT)
-        
+        distribution_method = data.GetLong(DISTRIBUTION_METHOD)
+
         cameras = []
-        
-        # Golden spiral distribution for even spacing
-        for i in range(count):
-            # Golden angle in radians
-            golden_angle = math.pi * (3.0 - math.sqrt(5.0))
-            
-            # y goes from 1 to -1
-            y = 1 - (i / float(count - 1)) * 2
-            
-            # radius at y
-            radius_at_y = math.sqrt(1 - y * y)
-            
-            # golden angle increment
-            theta = golden_angle * i
-            
-            x = math.cos(theta) * radius_at_y
-            z = math.sin(theta) * radius_at_y
-            
-            position = c4d.Vector(x * radius, y * radius, z * radius)
-            
+
+        # Get positions using selected distribution method
+        positions = []
+        if distribution_method == DIST_GOLDEN_SPIRAL:
+            positions = CameraArrayUtils.golden_spiral_distribution(count, radius)
+        elif distribution_method == DIST_FIBONACCI:
+            positions = CameraArrayUtils.fibonacci_sphere_distribution(count, radius)
+        elif distribution_method == DIST_HALTON:
+            positions = CameraArrayUtils.halton_sequence_distribution(count, radius)
+        elif distribution_method == DIST_POISSON:
+            positions = CameraArrayUtils.poisson_disk_distribution(count, radius)
+        else:
+            # Fallback to golden spiral
+            positions = CameraArrayUtils.golden_spiral_distribution(count, radius)
+
+        # Create cameras at calculated positions
+        for i, position in enumerate(positions):
             cam = self.create_single_camera(f'SphereCam_{i+1}', position, direction_type, target_obj)
             if cam:
                 cameras.append(cam)
                 doc.InsertObject(cam, node)
                 doc.AddUndo(c4d.UNDOTYPE_NEW, cam)
-        
+
         return cameras
     
     def create_cylinder_cameras(self, node):
@@ -403,6 +412,122 @@ class CameraArrayTool(plugins.ObjectData):
                 
                 f.write(f"{i+1} {qw} {qx} {qy} {qz} {pos.x} {pos.y} {pos.z} {i+1} {cam.GetName()}.jpg\n")
                 f.write("\n")  # Empty line for points2D
+
+    def batch_render_cameras(self, node):
+        """Batch render all camera takes"""
+        if not self.created_cameras:
+            gui.MessageDialog('No cameras to render. Create an array first.')
+            return
+
+        doc = node.GetDocument()
+        if not doc:
+            return
+
+        data = node.GetDataInstance()
+        output_path = data.GetString(BATCH_RENDER_PATH)
+
+        # Validate output path
+        if not output_path or not os.path.exists(output_path):
+            # Prompt user for output directory
+            output_path = c4d.storage.LoadDialog(
+                c4d.FILESELECTTYPE_ANYTHING,
+                "Select Output Directory for Batch Render",
+                c4d.FILESELECT_DIRECTORY
+            )
+
+            if not output_path:
+                gui.MessageDialog('Please select a valid output directory.')
+                return
+
+            # Save path for next time
+            data.SetString(BATCH_RENDER_PATH, output_path)
+
+        # Get take system
+        take_data = doc.GetTakeData()
+        if not take_data:
+            gui.MessageDialog('Take system not available.')
+            return
+
+        # Save current take to restore later
+        current_take = take_data.GetCurrentTake()
+
+        # Get render settings
+        rd = doc.GetActiveRenderData()
+        if not rd:
+            gui.MessageDialog('No active render settings found.')
+            return
+
+        # Store original render path
+        original_path = rd[c4d.RDATA_PATH]
+        original_save = rd[c4d.RDATA_SAVEIMAGE]
+
+        try:
+            # Enable save image
+            rd[c4d.RDATA_SAVEIMAGE] = True
+
+            # Render each camera
+            rendered_count = 0
+            for i, camera in enumerate(self.created_cameras):
+                # Find take for this camera
+                take = self.find_camera_take(camera, take_data)
+
+                if take:
+                    # Switch to this take
+                    take_data.SetCurrentTake(take)
+
+                    # Set output filename
+                    output_file = os.path.join(output_path, f"{camera.GetName()}.png")
+                    rd[c4d.RDATA_PATH] = output_file
+
+                    # Update document
+                    c4d.EventAdd()
+                    doc.ExecutePasses(None, True, True, True, c4d.BUILDFLAGS_NONE)
+
+                    # Render
+                    if documents.RenderDocument(doc, rd.GetData(), c4d.RENDERFLAGS_EXTERNAL):
+                        rendered_count += 1
+                        print(f"Rendered: {camera.GetName()}")
+                    else:
+                        print(f"Failed to render: {camera.GetName()}")
+                else:
+                    print(f"No take found for camera: {camera.GetName()}")
+
+            # Restore original settings
+            rd[c4d.RDATA_PATH] = original_path
+            rd[c4d.RDATA_SAVEIMAGE] = original_save
+            take_data.SetCurrentTake(current_take)
+
+            c4d.EventAdd()
+
+            gui.MessageDialog(f'Batch render complete!\nRendered {rendered_count} of {len(self.created_cameras)} cameras.\nOutput: {output_path}')
+
+        except Exception as e:
+            # Restore settings on error
+            rd[c4d.RDATA_PATH] = original_path
+            rd[c4d.RDATA_SAVEIMAGE] = original_save
+            take_data.SetCurrentTake(current_take)
+            gui.MessageDialog(f'Batch render failed: {str(e)}')
+
+    def find_camera_take(self, camera, take_data):
+        """Find the take associated with a camera"""
+        main_take = take_data.GetMainTake()
+
+        def search_takes(take):
+            """Recursively search for take with matching camera"""
+            if take.GetCamera(take_data) == camera:
+                return take
+
+            # Search children
+            child = take.GetDown()
+            while child:
+                result = search_takes(child)
+                if result:
+                    return result
+                child = child.GetNext()
+
+            return None
+
+        return search_takes(main_take)
 
 def main():
     """Register the plugin"""
